@@ -57,7 +57,11 @@ public class WordCount {
 
     public interface WordCountOptions extends PipelineOptions {
         @Description("Path of the file to read from")
-        @Default.String("gs://misows-dataflow-demo/data/formspring10000.txt")
+        @Default.String("gs://misows-dataflow-demo/data/formspring10000.txt##" +
+                "gs://misows-dataflow-demo/data/beerPosts2549.txt##" +
+                "gs://misows-dataflow-demo/data/politicsPosts22915.txt##" +
+                "gs://misows-dataflow-demo/data/redditSubmissions50000.txt##" +
+                "gs://misows-dataflow-demo/data/ubuntuPosts37833.txt")
         String getInputFile();
 
         void setInputFile(String value);
@@ -85,6 +89,14 @@ public class WordCount {
                 .withValidation()
                 .as(WordCountOptions.class);
 
-        runWordCount(options);
+        String[] inputFiles = options.getInputFile().split("##");
+        String[] outputFiles = options.getOutput().split("##");
+
+        for (int i = 0; i < inputFiles.length; i++) {
+            options.setInputFile(inputFiles[i]);
+            options.setOutput(outputFiles[i]);
+            System.out.println("RUNNING: " + inputFiles[0] + " -> " + outputFiles[0]);
+            runWordCount(options);
+        }
     }
 }

@@ -17,8 +17,7 @@ import org.apache.beam.sdk.values.PCollection;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class WordCount {
@@ -28,15 +27,13 @@ public class WordCount {
         private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
         private final Distribution lineLenDist =
                 Metrics.distribution(ExtractVulgarWordsFn.class, "lineLenDistro");
-        private static List<String> vulgarWords;
+        private static final List<String> vulgarWords = Arrays.asList();
 
         public ExtractVulgarWordsFn(List vulgarWords) {
-            this.vulgarWords = vulgarWords;
         }
 
         @ProcessElement
         public void processElement(@Element String element, OutputReceiver<String> receiver) {
-
             lineLenDist.update(element.length());
             if (element.trim().isEmpty()) {
                 emptyLines.inc();
@@ -114,19 +111,33 @@ public class WordCount {
             e.printStackTrace();
         }
 
-        Pipeline p = Pipeline.create(options);
+        String[] textInputs = options.getInputFile().split("##");
+        String[] textOutputs = {"formspring.txt", "beers.txt", "politics.txt", "reddit.txt", "ubuntu.txt"};
 
-        p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
-                .apply(new CountWords(vulgarWords))
-                .apply(MapElements.via(new FormatAsTextFn()))
-                .apply("WriteCounts", TextIO.write().to(options.getOutput()));
+        Map<String, String> inputOutputMap = new HashMap<>();
+        for (int i = 0; i < textInputs.length; i++) {
+            inputOutputMap.put(textInputs[i], textOutputs[i]);
+        }
 
-        p.run().waitUntilFinish();
+        for (String source : textInputs) {
+            Pipeline p = Pipeline.create(options);
+
+            p.apply("ReadLines", TextIO.read().from(source))
+                    .apply(new CountWords(vulgarWords))
+                    .apply(MapElements.via(new FormatAsTextFn()))
+                    .apply("WriteCounts", TextIO.write().to(options.getOutput() + inputOutputMap.get(source)));
+
+            p.run().waitUntilFinish();
+        }
     }
 
     public interface WordCountOptions extends PipelineOptions {
         @Description("Path of the file to read from")
-        @Default.String("gs://misows-dataflow-demo/data/formspring10000.txt")
+        @Default.String("gs://misows-dataflow-demo/data/formspring10000.txt##" +
+                "gs://misows-dataflow-demo/data/beerPosts2549.txt##" +
+                "gs://misows-dataflow-demo/data/politicsPosts22915.txt##" +
+                "gs://misows-dataflow-demo/data/redditSubmissions50000.txt##" +
+                "gs://misows-dataflow-demo/data/ubuntuPosts37833.txt")
         String getInputFile();
 
         void setInputFile(String value);

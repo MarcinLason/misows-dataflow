@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-mvn compile exec:java -Dexec.mainClass=pl.edu.agh.misows.WordCount -Dexec.args=--output=./output/
+mvn compile exec:java -Dexec.mainClass=pl.edu.agh.misows.WordCount -Dexec.args="--output=./output/result.txt"

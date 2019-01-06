@@ -38,13 +38,6 @@ public class WordCount {
         }
     }
 
-    public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
-        @Override
-        public String apply(KV<String, Long> input) {
-            return input.getKey() + ": " + input.getValue();
-        }
-    }
-
     public static class CountWords extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
         @Override
         public PCollection<KV<String, Long>> expand(PCollection<String> lines) {
@@ -52,6 +45,56 @@ public class WordCount {
             PCollection<String> words = lines.apply(ParDo.of(new ExtractWordsFn()));
             PCollection<KV<String, Long>> wordCounts = words.apply(Count.perElement());
             return wordCounts;
+        }
+    }
+
+    public static class CountVulgarWords extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
+        @Override
+        public PCollection<KV<String, Long>> expand(PCollection<String> lines) {
+            PCollection<String> words = lines.apply(ParDo.of(new ExtractWordsFn()));
+            PCollection<KV<String, Long>> wordCounts = words.apply(Count.perElement());
+            return wordCounts;
+        }
+    }
+
+    public static void main(String[] args) {
+        WordCountOptions options = PipelineOptionsFactory.fromArgs(args)
+                .withValidation()
+                .as(WordCountOptions.class);
+
+        String[] inputFiles = options.getInputFile().split("##");
+        String[] outputFiles = options.getOutput().split("##");
+
+        for (int i = 0; i < inputFiles.length; i++) {
+            options.setInputFile(inputFiles[i]);
+            options.setOutput(outputFiles[i]);
+            System.out.println("RUNNING: " + inputFiles[0] + " -> " + outputFiles[0]);
+            runWordCount(options, new CountWords());
+        }
+
+        for (int i = 0; i < inputFiles.length; i++) {
+            options.setInputFile(inputFiles[i]);
+            options.setOutput(outputFiles[i] + "vulgar");
+            System.out.println("RUNNING: " + inputFiles[0] + " -> " + outputFiles[0]);
+            runWordCount(options, new CountVulgarWords());
+        }
+    }
+
+    static void runWordCount(WordCountOptions options, PTransform<PCollection<String>, PCollection<KV<String, Long>>> transform) {
+        Pipeline p = Pipeline.create(options);
+
+        p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
+                .apply(transform)
+                .apply(MapElements.via(new FormatAsTextFn()))
+                .apply("WriteCounts", TextIO.write().to(options.getOutput()));
+
+        p.run().waitUntilFinish();
+    }
+
+    public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
+        @Override
+        public String apply(KV<String, Long> input) {
+            return input.getKey() + ": " + input.getValue();
         }
     }
 
@@ -71,32 +114,5 @@ public class WordCount {
         String getOutput();
 
         void setOutput(String value);
-    }
-
-    static void runWordCount(WordCountOptions options) {
-        Pipeline p = Pipeline.create(options);
-
-        p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
-                .apply(new CountWords())
-                .apply(MapElements.via(new FormatAsTextFn()))
-                .apply("WriteCounts", TextIO.write().to(options.getOutput()));
-
-        p.run().waitUntilFinish();
-    }
-
-    public static void main(String[] args) {
-        WordCountOptions options = PipelineOptionsFactory.fromArgs(args)
-                .withValidation()
-                .as(WordCountOptions.class);
-
-        String[] inputFiles = options.getInputFile().split("##");
-        String[] outputFiles = options.getOutput().split("##");
-
-        for (int i = 0; i < inputFiles.length; i++) {
-            options.setInputFile(inputFiles[i]);
-            options.setOutput(outputFiles[i]);
-            System.out.println("RUNNING: " + inputFiles[0] + " -> " + outputFiles[0]);
-            runWordCount(options);
-        }
     }
 }

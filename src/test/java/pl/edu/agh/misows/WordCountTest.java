@@ -17,37 +17,18 @@
  */
 package pl.edu.agh.misows;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import pl.edu.agh.misows.WordCount.CountWords;
-import pl.edu.agh.misows.WordCount.ExtractWordsFn;
-import pl.edu.agh.misows.WordCount.FormatAsTextFn;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests of WordCount.
- */
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 @RunWith(JUnit4.class)
 public class WordCountTest {
 
@@ -65,34 +46,6 @@ public class WordCountTest {
         Assert.assertThat(
                 extractWordsFn.processBundle(" some ", " input", " words"),
                 CoreMatchers.hasItems("some", "input", "words"));
-    }
-
-    static final String[] WORDS_ARRAY =
-            new String[]{
-                    "hi there", "hi", "hi sue bob",
-                    "hi sue", "", "bob hi"
-            };
-
-    static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
-
-    static final String[] COUNTS_ARRAY = new String[]{"hi: 5", "there: 1", "sue: 2", "bob: 2"};
-
-    @Rule
-    public TestPipeline p = TestPipeline.create();
-
-    /**
-     * Example test that tests a PTransform by using an in-memory input and inspecting the output.
-     */
-    @Test
-    @Category(ValidatesRunner.class)
-    public void testCountWords() throws Exception {
-        PCollection<String> input = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
-
-        PCollection<String> output =
-                input.apply(new CountWords()).apply(MapElements.via(new FormatAsTextFn()));
-
-        PAssert.that(output).containsInAnyOrder(COUNTS_ARRAY);
-        p.run().waitUntilFinish();
     }
 
     @Test
